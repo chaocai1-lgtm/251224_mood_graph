@@ -3,9 +3,7 @@ import json
 import os
 from datetime import datetime
 from neo4j import GraphDatabase
-from pyvis.network import Network
-import tempfile
-import streamlit.components.v1 as components
+from streamlit_agraph import agraph, Node, Edge, Config
 
 # =============================================
 # 页面配置
@@ -42,30 +40,30 @@ KNOWLEDGE = {
     "敬畏生命": {"type": "topic", "content": "罗曼·罗兰：世界上只有一种真正的英雄主义，那就是认清生活真相后，依旧热爱生活。敬畏生命：尊重自己和他人的生命、在困难中保持希望。", "keywords": ["热爱生活", "英雄主义", "生命尊重"]}
 }
 
-# 图谱节点
-NODES = [
-    {"name": "让生命绽放光彩", "size": 80, "category": 0, "color": "#5470c6"},
-    {"name": "向死而生", "size": 55, "category": 1, "color": "#91cc75"},
-    {"name": "生命意义", "size": 55, "category": 1, "color": "#91cc75"},
-    {"name": "转危为机", "size": 55, "category": 1, "color": "#91cc75"},
-    {"name": "活出精彩", "size": 55, "category": 1, "color": "#91cc75"},
-    {"name": "认识死亡", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "死亡态度", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "死亡特征", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "生命特征", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "意义作用", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "琼瑶启示", "size": 40, "category": 3, "color": "#ee6666"},
-    {"name": "危机概念", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "危机特征", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "危机类型", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "危机识别", "size": 40, "category": 3, "color": "#ee6666"},
-    {"name": "活在当下", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "自我价值", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "亲密关系", "size": 40, "category": 2, "color": "#fac858"},
-    {"name": "敬畏生命", "size": 40, "category": 3, "color": "#ee6666"}
+# 图谱节点配置
+NODES_CONFIG = [
+    {"id": "让生命绽放光彩", "size": 45, "color": "#5470c6"},
+    {"id": "向死而生", "size": 35, "color": "#91cc75"},
+    {"id": "生命意义", "size": 35, "color": "#91cc75"},
+    {"id": "转危为机", "size": 35, "color": "#91cc75"},
+    {"id": "活出精彩", "size": 35, "color": "#91cc75"},
+    {"id": "认识死亡", "size": 28, "color": "#fac858"},
+    {"id": "死亡态度", "size": 28, "color": "#fac858"},
+    {"id": "死亡特征", "size": 28, "color": "#fac858"},
+    {"id": "生命特征", "size": 28, "color": "#fac858"},
+    {"id": "意义作用", "size": 28, "color": "#fac858"},
+    {"id": "琼瑶启示", "size": 28, "color": "#ee6666"},
+    {"id": "危机概念", "size": 28, "color": "#fac858"},
+    {"id": "危机特征", "size": 28, "color": "#fac858"},
+    {"id": "危机类型", "size": 28, "color": "#fac858"},
+    {"id": "危机识别", "size": 28, "color": "#ee6666"},
+    {"id": "活在当下", "size": 28, "color": "#fac858"},
+    {"id": "自我价值", "size": 28, "color": "#fac858"},
+    {"id": "亲密关系", "size": 28, "color": "#fac858"},
+    {"id": "敬畏生命", "size": 28, "color": "#ee6666"}
 ]
 
-# 图谱关系
+# 图谱关系（包含标签）
 LINKS = [
     {"source": "让生命绽放光彩", "target": "向死而生", "label": "包含"},
     {"source": "让生命绽放光彩", "target": "生命意义", "label": "包含"},
@@ -118,6 +116,7 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         color: white;
+        border-radius: 0 0 10px 10px;
     }
     .top-header h1 {
         font-size: 20px;
@@ -152,7 +151,7 @@ st.markdown("""
         color: #fff;
         margin-right: 8px;
     }
-    .content {
+    .content-text {
         font-size: 13px;
         line-height: 1.9;
         color: #555;
@@ -256,6 +255,18 @@ st.markdown("""
         border-radius: 50%;
         display: inline-block;
     }
+    
+    /* 提示框 */
+    .tips-box {
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 11px;
+        color: #888;
+        line-height: 1.8;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        margin-top: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -326,6 +337,104 @@ def load_all_users_from_neo4j(driver):
         return {}
 
 # =============================================
+# 辅助函数：记录点击
+# =============================================
+def record_click(node_name):
+    """记录用户点击并更新学习路径"""
+    click_record = {'node': node_name, 'ts': datetime.now().isoformat()}
+    st.session_state.clicks.append(click_record)
+    # 记录路径（去重）
+    if not any(p['node'] == node_name for p in st.session_state.path):
+        st.session_state.path.append(click_record)
+    # 保存到 Neo4j
+    driver = get_neo4j_driver()
+    if driver and st.session_state.user_id:
+        save_user_data_to_neo4j(driver, st.session_state.user_id, {
+            'clicks': st.session_state.clicks,
+            'path': st.session_state.path,
+            'feedbacks': st.session_state.feedbacks
+        })
+
+# =============================================
+# 显示节点详情（复刻 graph.html 的 showDetail）
+# =============================================
+def show_node_detail(name):
+    """显示选中节点的详细信息"""
+    data = KNOWLEDGE.get(name)
+    if not data:
+        st.info("请点击图谱中的节点查看详情")
+        return
+    
+    tag_colors = {"center": "#5470c6", "section": "#91cc75", "topic": "#fac858"}
+    tag_names = {"center": "课程主题", "section": "核心章节", "topic": "知识要点"}
+    color = tag_colors.get(data['type'], "#667eea")
+    tag_name = tag_names.get(data['type'], "知识要点")
+    
+    # 主卡片
+    st.markdown(f"""
+    <div class="detail-card" style="border-left-color: {color}">
+        <h3><span class="tag" style="background: {color}">{tag_name}</span>{name}</h3>
+        <div class="content-text">{data['content']}</div>
+        <div style="margin-top: 12px;">
+            {''.join([f'<span class="kw">{kw}</span>' for kw in data.get('keywords', [])])}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 子节点（只显示直接子节点，不包括虚线关联）
+    children = [l['target'] for l in LINKS if l['source'] == name and not l.get('dashed')]
+    if children:
+        st.markdown("**📌 相关知识点：**")
+        for child in children:
+            child_data = KNOWLEDGE.get(child, {})
+            if child_data:
+                # 找到关系标签
+                relation_label = next((l['label'] for l in LINKS if l['source'] == name and l['target'] == child), "")
+                with st.container():
+                    col_btn, col_rel = st.columns([4, 1])
+                    with col_btn:
+                        if st.button(f"📎 {child}", key=f"child_{child}", use_container_width=True):
+                            st.session_state.selected_node = child
+                            record_click(child)
+                            st.rerun()
+                    with col_rel:
+                        st.caption(f"[{relation_label}]")
+
+# =============================================
+# 构建 agraph 图谱
+# =============================================
+def build_agraph():
+    """构建 streamlit-agraph 图谱节点和边"""
+    nodes = []
+    edges = []
+    
+    for n in NODES_CONFIG:
+        nodes.append(Node(
+            id=n["id"],
+            label=n["id"],
+            size=n["size"],
+            color=n["color"],
+            font={"color": "#333", "size": 12},
+            borderWidth=2,
+            borderWidthSelected=4
+        ))
+    
+    for l in LINKS:
+        edge_color = "#bbb" if l.get("dashed") else "#999"
+        edges.append(Edge(
+            source=l["source"],
+            to=l["target"],
+            label=l["label"],  # 关系标签（两个字）
+            color=edge_color,
+            font={"color": "#888", "size": 10, "align": "middle"},
+            arrows={"to": {"enabled": True, "scaleFactor": 0.5}},
+            dashes=l.get("dashed", False),
+            smooth={"type": "curvedCW", "roundness": 0.1} if l.get("dashed") else False
+        ))
+    
+    return nodes, edges
+
+# =============================================
 # 顶部导航栏
 # =============================================
 st.markdown("""
@@ -362,7 +471,7 @@ if st.session_state.mode == 'student':
         user_id = st.text_input("", placeholder="例如：2024001 张三", label_visibility="collapsed", key="user_input")
         if user_id:
             st.session_state.user_id = user_id
-            st.success(f"已登录: {user_id}")
+            st.success(f"✅ 已登录: {user_id}")
         else:
             st.caption("输入后开始记录学习轨迹")
         
@@ -371,46 +480,16 @@ if st.session_state.mode == 'student':
         # 节点详情区域
         st.markdown("#### 📍 知识点详情")
         
-        # 节点选择器（模拟点击）
-        node_names = [n['name'] for n in NODES]
-        selected = st.selectbox("选择知识点:", node_names, key="node_selector")
-        
-        if selected:
-            st.session_state.selected_node = selected
-            # 记录点击
-            click_record = {'node': selected, 'ts': datetime.now().isoformat()}
-            st.session_state.clicks.append(click_record)
-            # 记录路径（去重）
-            if not any(p['node'] == selected for p in st.session_state.path):
-                st.session_state.path.append(click_record)
-        
         if st.session_state.selected_node:
-            data = KNOWLEDGE.get(st.session_state.selected_node, {})
-            if data:
-                tag_colors = {"center": "#5470c6", "section": "#91cc75", "topic": "#fac858"}
-                tag_names = {"center": "课程主题", "section": "核心章节", "topic": "知识要点"}
-                color = tag_colors.get(data['type'], "#667eea")
-                tag_name = tag_names.get(data['type'], "知识要点")
-                
-                st.markdown(f"""
-                <div class="detail-card" style="border-left-color: {color}">
-                    <h3><span class="tag" style="background: {color}">{tag_name}</span>{st.session_state.selected_node}</h3>
-                    <div class="content">{data['content']}</div>
-                    <div style="margin-top: 12px;">
-                        {''.join([f'<span class="kw">{kw}</span>' for kw in data.get('keywords', [])])}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 子节点
-                children = [l['target'] for l in LINKS if l['source'] == st.session_state.selected_node and not l.get('dashed')]
-                if children:
-                    st.markdown("**相关知识点：**")
-                    for child in children:
-                        child_data = KNOWLEDGE.get(child, {})
-                        if child_data:
-                            with st.expander(f"📌 {child}"):
-                                st.write(child_data['content'][:100] + "...")
+            show_node_detail(st.session_state.selected_node)
+        else:
+            st.markdown("""
+            <div style="text-align: center; color: #aaa; padding: 40px 20px;">
+                <div style="font-size: 50px; margin-bottom: 16px;">🎯</div>
+                <p>点击图谱中的节点</p>
+                <p style="margin-top: 8px; font-size: 12px;">探索知识内容</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -426,7 +505,7 @@ if st.session_state.mode == 'student':
         
         # 反馈框
         st.markdown("#### 💭 关于死亡，你有什么想法？")
-        feedback = st.text_area("", placeholder="分享你的思考和感悟...", label_visibility="collapsed", height=100)
+        feedback = st.text_area("", placeholder="分享你的思考和感悟...", label_visibility="collapsed", height=100, key="feedback_input")
         if st.button("提交我的想法", use_container_width=True):
             if feedback.strip():
                 st.session_state.feedbacks.append({
@@ -458,45 +537,39 @@ if st.session_state.mode == 'student':
         </div>
         """, unsafe_allow_html=True)
         
-        # Pyvis 图谱
-        net = Network(height="550px", width="100%", bgcolor="#fafbfc", font_color="#333")
+        # 构建图谱
+        nodes, edges = build_agraph()
         
-        # 添加节点
-        for n in NODES:
-            net.add_node(
-                n['name'], 
-                label=n['name'], 
-                title=KNOWLEDGE.get(n['name'], {}).get('content', '')[:100],
-                color=n['color'], 
-                size=n['size']/2,
-                font={'size': 12, 'color': '#333'}
-            )
+        config = Config(
+            width="100%",
+            height=550,
+            directed=True,
+            physics=True,
+            hierarchical=False,
+            nodeHighlightBehavior=True,
+            highlightColor="#F7A7A6",
+            collapsible=False,
+            node={'labelProperty': 'label'},
+            link={'labelProperty': 'label', 'renderLabel': True}
+        )
         
-        # 添加边
-        for l in LINKS:
-            edge_color = '#ccc' if l.get('dashed') else '#999'
-            net.add_edge(
-                l['source'], 
-                l['target'], 
-                title=l['label'],
-                color=edge_color,
-                dashes=l.get('dashed', False)
-            )
+        # 渲染图谱并捕获点击事件
+        selected_node = agraph(nodes=nodes, edges=edges, config=config)
         
-        # 物理配置
-        net.force_atlas_2based(gravity=-50, central_gravity=0.01, spring_length=100)
+        # 处理节点点击
+        if selected_node:
+            if selected_node != st.session_state.selected_node:
+                st.session_state.selected_node = selected_node
+                record_click(selected_node)
+                st.rerun()
         
-        # 保存并展示
-        try:
-            path = tempfile.mktemp(suffix=".html")
-            net.save_graph(path)
-            with open(path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            components.html(html_content, height=580)
-        except Exception as e:
-            st.error(f"图谱渲染失败: {e}")
-        
-        st.caption("💡 点击节点查看详情 | 拖拽移动节点 | 滚轮缩放图谱")
+        # 提示
+        st.markdown("""
+        <div class="tips-box">
+            💡 <strong>操作提示：</strong>点击节点查看详情 | 拖拽移动节点 | 滚轮缩放图谱<br>
+            边上的文字表示节点之间的关系（如"包含"、"探讨"、"分析"等）
+        </div>
+        """, unsafe_allow_html=True)
 
 # =============================================
 # 教师模式
@@ -517,7 +590,7 @@ else:
             else:
                 st.error("密码错误，请重试")
     else:
-        # 教师数据看板
+        # 教师数据看板（不显示图谱，只显示数据）
         st.markdown("## 📊 教学数据看板")
         
         # 刷新按钮
