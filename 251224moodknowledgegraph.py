@@ -418,7 +418,7 @@ def build_agraph():
             size=n["size"],
             color=n["color"],
             shape="circle", # 文字在圆圈内
-            font={"color": "white", "size": 14 if n["size"] > 50 else 10}, # 白色文字
+            font={"color": "#111", "size": 14 if n["size"] > 50 else 10}, # 黑色文字
             borderWidth=2,
             borderWidthSelected=4,
             shadow={"enabled": True, "color": "rgba(0,0,0,0.2)", "size": 5, "x": 2, "y": 2}
