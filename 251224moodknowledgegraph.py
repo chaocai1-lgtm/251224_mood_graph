@@ -40,27 +40,27 @@ KNOWLEDGE = {
     "敬畏生命": {"type": "topic", "content": "罗曼·罗兰：世界上只有一种真正的英雄主义，那就是认清生活真相后，依旧热爱生活。敬畏生命：尊重自己和他人的生命、在困难中保持希望。", "keywords": ["热爱生活", "英雄主义", "生命尊重"]}
 }
 
-# 图谱节点配置
+# 图谱节点配置 (加大尺寸以容纳文字，仿 ECharts 样式)
 NODES_CONFIG = [
-    {"id": "让生命绽放光彩", "size": 45, "color": "#5470c6"},
-    {"id": "向死而生", "size": 35, "color": "#91cc75"},
-    {"id": "生命意义", "size": 35, "color": "#91cc75"},
-    {"id": "转危为机", "size": 35, "color": "#91cc75"},
-    {"id": "活出精彩", "size": 35, "color": "#91cc75"},
-    {"id": "认识死亡", "size": 28, "color": "#fac858"},
-    {"id": "死亡态度", "size": 28, "color": "#fac858"},
-    {"id": "死亡特征", "size": 28, "color": "#fac858"},
-    {"id": "生命特征", "size": 28, "color": "#fac858"},
-    {"id": "意义作用", "size": 28, "color": "#fac858"},
-    {"id": "琼瑶启示", "size": 28, "color": "#ee6666"},
-    {"id": "危机概念", "size": 28, "color": "#fac858"},
-    {"id": "危机特征", "size": 28, "color": "#fac858"},
-    {"id": "危机类型", "size": 28, "color": "#fac858"},
-    {"id": "危机识别", "size": 28, "color": "#ee6666"},
-    {"id": "活在当下", "size": 28, "color": "#fac858"},
-    {"id": "自我价值", "size": 28, "color": "#fac858"},
-    {"id": "亲密关系", "size": 28, "color": "#fac858"},
-    {"id": "敬畏生命", "size": 28, "color": "#ee6666"}
+    {"id": "让生命绽放光彩", "size": 60, "color": "#5470c6"},
+    {"id": "向死而生", "size": 45, "color": "#91cc75"},
+    {"id": "生命意义", "size": 45, "color": "#91cc75"},
+    {"id": "转危为机", "size": 45, "color": "#91cc75"},
+    {"id": "活出精彩", "size": 45, "color": "#91cc75"},
+    {"id": "认识死亡", "size": 35, "color": "#fac858"},
+    {"id": "死亡态度", "size": 35, "color": "#fac858"},
+    {"id": "死亡特征", "size": 35, "color": "#fac858"},
+    {"id": "生命特征", "size": 35, "color": "#fac858"},
+    {"id": "意义作用", "size": 35, "color": "#fac858"},
+    {"id": "琼瑶启示", "size": 35, "color": "#ee6666"},
+    {"id": "危机概念", "size": 35, "color": "#fac858"},
+    {"id": "危机特征", "size": 35, "color": "#fac858"},
+    {"id": "危机类型", "size": 35, "color": "#fac858"},
+    {"id": "危机识别", "size": 35, "color": "#ee6666"},
+    {"id": "活在当下", "size": 35, "color": "#fac858"},
+    {"id": "自我价值", "size": 35, "color": "#fac858"},
+    {"id": "亲密关系", "size": 35, "color": "#fac858"},
+    {"id": "敬畏生命", "size": 35, "color": "#ee6666"}
 ]
 
 # 图谱关系（包含标签）
@@ -408,28 +408,37 @@ def build_agraph():
     nodes = []
     edges = []
     
+    # 建立颜色映射，用于边染色
+    node_color_map = {n["id"]: n["color"] for n in NODES_CONFIG}
+    
     for n in NODES_CONFIG:
         nodes.append(Node(
             id=n["id"],
             label=n["id"],
             size=n["size"],
             color=n["color"],
-            font={"color": "#333", "size": 12},
+            shape="circle", # 文字在圆圈内
+            font={"color": "white", "size": 14 if n["size"] > 50 else 10}, # 白色文字
             borderWidth=2,
-            borderWidthSelected=4
+            borderWidthSelected=4,
+            shadow={"enabled": True, "color": "rgba(0,0,0,0.2)", "size": 5, "x": 2, "y": 2}
         ))
     
     for l in LINKS:
-        edge_color = "#bbb" if l.get("dashed") else "#999"
+        # 边颜色跟随源节点 (仿 ECharts color: 'source')
+        source_color = node_color_map.get(l["source"], "#999")
+        edge_color = source_color if not l.get("dashed") else "#bbb"
+        
         edges.append(Edge(
             source=l["source"],
             target=l["target"],
-            label=l["label"],  # 关系标签（两个字）
+            label=l["label"],
             color=edge_color,
-            font={"color": "#888", "size": 10, "align": "middle"},
+            font={"color": source_color if not l.get("dashed") else "#888", "size": 10, "align": "middle", "background": "white", "strokeWidth": 0},
             arrows={"to": {"enabled": True, "scaleFactor": 0.5}},
             dashes=l.get("dashed", False),
-            smooth={"type": "curvedCW", "roundness": 0.1} if l.get("dashed") else False
+            width=2 if not l.get("dashed") else 1,
+            smooth={"type": "continuous", "roundness": 0} if not l.get("dashed") else {"type": "curvedCW", "roundness": 0.2}
         ))
     
     return nodes, edges
@@ -542,10 +551,21 @@ if st.session_state.mode == 'student':
         
         config = Config(
             width="100%",
-            height=550,
+            height=600,
             directed=True,
-            physics=True,
-            hierarchical=False,
+            physics={
+                "solver": "forceAtlas2Based",
+                "forceAtlas2Based": {
+                    "gravitationalConstant": -100,
+                    "centralGravity": 0.005,
+                    "springLength": 200,
+                    "springConstant": 0.05,
+                    "damping": 0.4,
+                    "avoidOverlap": 1
+                },
+                "minVelocity": 0.75,
+                "stabilization": {"enabled": True, "iterations": 200}
+            },
             nodeHighlightBehavior=True,
             highlightColor="#F7A7A6",
             collapsible=False,
