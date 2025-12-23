@@ -423,7 +423,7 @@ def build_agraph():
         edge_color = "#bbb" if l.get("dashed") else "#999"
         edges.append(Edge(
             source=l["source"],
-            to=l["target"],
+            target=l["target"],
             label=l["label"],  # 关系标签（两个字）
             color=edge_color,
             font={"color": "#888", "size": 10, "align": "middle"},
