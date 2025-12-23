@@ -291,8 +291,10 @@ if 'all_users_data' not in st.session_state:
     st.session_state.all_users_data = {}
 
 # =============================================
-# Neo4j 连接（可选）
+# 数据存储（Neo4j + 本地 JSON 降级方案）
 # =============================================
+DATA_FILE = "student_data.json"
+
 def get_neo4j_driver():
     try:
         uri = st.secrets["NEO4J_URI"]
@@ -302,39 +304,79 @@ def get_neo4j_driver():
     except:
         return None
 
-def save_user_data_to_neo4j(driver, user_id, data):
-    if not driver:
-        return
+def save_data(user_id, data):
+    """保存数据到 Neo4j 或本地 JSON"""
+    # 确保有 user_id，如果是空的则标记为 anonymous
+    target_id = user_id if user_id else "anonymous"
+    
+    # 1. 尝试保存到 Neo4j
+    driver = get_neo4j_driver()
+    if driver:
+        try:
+            with driver.session() as session:
+                session.run("""
+                    MERGE (u:Student {id: $uid})
+                    SET u.clicks = $clicks, u.path = $path, u.feedbacks = $feedbacks, u.updated = $ts
+                """, uid=target_id, 
+                    clicks=json.dumps(data.get('clicks', [])), 
+                    path=json.dumps(data.get('path', [])), 
+                    feedbacks=json.dumps(data.get('feedbacks', [])),
+                    ts=datetime.now().isoformat())
+            return
+        except Exception as e:
+            print(f"Neo4j save failed: {e}")
+    
+    # 2. 降级方案：保存到本地 JSON 文件
     try:
-        with driver.session() as session:
-            session.run("""
-                MERGE (u:Student {id: $uid})
-                SET u.clicks = $clicks, u.path = $path, u.feedbacks = $feedbacks, u.updated = $ts
-            """, uid=user_id, clicks=json.dumps(data.get('clicks', [])), 
-                path=json.dumps(data.get('path', [])), 
-                feedbacks=json.dumps(data.get('feedbacks', [])),
-                ts=datetime.now().isoformat())
-    except:
-        pass
+        all_data = {}
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                try:
+                    all_data = json.load(f)
+                except:
+                    pass
+        
+        all_data[target_id] = {
+            'clicks': data.get('clicks', []),
+            'path': data.get('path', []),
+            'feedbacks': data.get('feedbacks', []),
+            'updated': datetime.now().isoformat()
+        }
+        
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(all_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Local save failed: {e}")
 
-def load_all_users_from_neo4j(driver):
-    if not driver:
-        return {}
-    try:
-        with driver.session() as session:
-            result = session.run("MATCH (u:Student) RETURN u.id, u.clicks, u.path, u.feedbacks, u.updated")
-            users = {}
-            for record in result:
-                uid = record['u.id']
-                users[uid] = {
-                    'clicks': json.loads(record['u.clicks'] or '[]'),
-                    'path': json.loads(record['u.path'] or '[]'),
-                    'feedbacks': json.loads(record['u.feedbacks'] or '[]'),
-                    'updated': record['u.updated']
-                }
-            return users
-    except:
-        return {}
+def load_data():
+    """加载所有用户数据"""
+    # 1. 尝试从 Neo4j 加载
+    driver = get_neo4j_driver()
+    if driver:
+        try:
+            with driver.session() as session:
+                result = session.run("MATCH (u:Student) RETURN u.id, u.clicks, u.path, u.feedbacks, u.updated")
+                users = {}
+                for record in result:
+                    uid = record['u.id']
+                    users[uid] = {
+                        'clicks': json.loads(record['u.clicks'] or '[]'),
+                        'path': json.loads(record['u.path'] or '[]'),
+                        'feedbacks': json.loads(record['u.feedbacks'] or '[]'),
+                        'updated': record['u.updated']
+                    }
+                return users
+        except Exception as e:
+            print(f"Neo4j load failed: {e}")
+    
+    # 2. 降级方案：从本地 JSON 加载
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
 # =============================================
 # 辅助函数：记录点击
@@ -346,14 +388,13 @@ def record_click(node_name):
     # 记录路径（去重）
     if not any(p['node'] == node_name for p in st.session_state.path):
         st.session_state.path.append(click_record)
-    # 保存到 Neo4j
-    driver = get_neo4j_driver()
-    if driver and st.session_state.user_id:
-        save_user_data_to_neo4j(driver, st.session_state.user_id, {
-            'clicks': st.session_state.clicks,
-            'path': st.session_state.path,
-            'feedbacks': st.session_state.feedbacks
-        })
+    
+    # 保存数据（自动处理 Neo4j 或本地文件）
+    save_data(st.session_state.user_id, {
+        'clicks': st.session_state.clicks,
+        'path': st.session_state.path,
+        'feedbacks': st.session_state.feedbacks
+    })
 
 # =============================================
 # 显示节点详情（复刻 graph.html 的 showDetail）
@@ -521,14 +562,12 @@ if st.session_state.mode == 'student':
                     'content': feedback.strip(),
                     'ts': datetime.now().isoformat()
                 })
-                # 保存到 Neo4j
-                driver = get_neo4j_driver()
-                if driver and st.session_state.user_id:
-                    save_user_data_to_neo4j(driver, st.session_state.user_id, {
-                        'clicks': st.session_state.clicks,
-                        'path': st.session_state.path,
-                        'feedbacks': st.session_state.feedbacks
-                    })
+                # 保存数据
+                save_data(st.session_state.user_id, {
+                    'clicks': st.session_state.clicks,
+                    'path': st.session_state.path,
+                    'feedbacks': st.session_state.feedbacks
+                })
                 st.success("感谢分享！")
                 st.rerun()
             else:
@@ -604,8 +643,7 @@ else:
             if pwd == "admin888":
                 st.session_state.teacher_verified = True
                 # 加载数据
-                driver = get_neo4j_driver()
-                st.session_state.all_users_data = load_all_users_from_neo4j(driver)
+                st.session_state.all_users_data = load_data()
                 st.rerun()
             else:
                 st.error("密码错误，请重试")
@@ -617,8 +655,7 @@ else:
         col_actions = st.columns([1, 1, 1, 3])
         with col_actions[0]:
             if st.button("🔄 刷新数据"):
-                driver = get_neo4j_driver()
-                st.session_state.all_users_data = load_all_users_from_neo4j(driver)
+                st.session_state.all_users_data = load_data()
                 st.rerun()
         with col_actions[1]:
             if st.button("📥 导出数据"):
