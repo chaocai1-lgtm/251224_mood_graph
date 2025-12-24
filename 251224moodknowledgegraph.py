@@ -103,9 +103,9 @@ st.markdown("""
         overflow: hidden;
     }
     
-    /* 主容器紧凑 */
+    /* 主容器紧凑 - 顶部无间距 */
     .main .block-container {
-        padding-top: 0.3rem !important;
+        padding-top: 0 !important;
         padding-bottom: 0.3rem !important;
         max-width: 100% !important;
     }
@@ -118,11 +118,11 @@ st.markdown("""
     /* 减小分隔线间距 */
     hr { margin: 0.3rem 0 !important; }
     
-    /* 顶部导航栏 - 紧凑 */
+    /* 顶部导航栏 - 贴顶 */
     .top-header {
         background: linear-gradient(135deg, #667eea, #764ba2);
         padding: 10px 24px;
-        margin: -0.3rem -1rem 0.5rem -1rem;
+        margin: 0 -1rem 0.5rem -1rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
