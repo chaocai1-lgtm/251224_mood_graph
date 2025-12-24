@@ -103,17 +103,21 @@ st.markdown("""
         overflow: hidden;
     }
     
+    /* 彻底隐藏顶部 Header */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+    
     /* 主容器紧凑 - 顶部无间距 */
     .main .block-container {
         padding-top: 0 !important;
-        padding-bottom: 0.3rem !important;
+        padding-bottom: 0 !important;
         max-width: 100% !important;
     }
     
     /* 隐藏 Streamlit 默认元素 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* 减小分隔线间距 */
     hr { margin: 0.3rem 0 !important; }
