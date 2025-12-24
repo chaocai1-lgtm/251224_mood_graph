@@ -93,13 +93,21 @@ LINKS = [
 ]
 
 # =============================================
-# 样式（复刻 graph.html 浅色主题）
+# 样式（复刻 graph.html - 单屏适配版）
 # =============================================
 st.markdown("""
 <style>
-    /* 全局背景 */
+    /* 全局背景 + 适配视口 */
     .stApp {
         background-color: #f5f7fa;
+        overflow: hidden;
+    }
+    
+    /* 主容器紧凑 */
+    .main .block-container {
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
+        max-width: 100% !important;
     }
     
     /* 隐藏 Streamlit 默认元素 */
@@ -107,72 +115,75 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* 顶部导航栏 */
+    /* 减小分隔线间距 */
+    hr { margin: 0.3rem 0 !important; }
+    
+    /* 顶部导航栏 - 紧凑 */
     .top-header {
         background: linear-gradient(135deg, #667eea, #764ba2);
-        padding: 16px 32px;
-        margin: -1rem -1rem 1rem -1rem;
+        padding: 10px 24px;
+        margin: -0.3rem -1rem 0.5rem -1rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         color: white;
-        border-radius: 0 0 10px 10px;
+        border-radius: 0 0 8px 8px;
     }
     .top-header h1 {
-        font-size: 20px;
+        font-size: 17px;
         margin: 0;
         color: white !important;
     }
     .top-header p {
-        font-size: 12px;
+        font-size: 11px;
         opacity: 0.85;
-        margin: 4px 0 0 0;
+        margin: 2px 0 0 0;
     }
     
-    /* 卡片样式 */
+    /* 卡片样式 - 紧凑 */
     .detail-card {
         background: #fff;
-        border-radius: 12px;
-        padding: 18px;
-        margin-bottom: 14px;
-        border-left: 4px solid #667eea;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border-left: 3px solid #667eea;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
     .detail-card h3 {
-        font-size: 16px;
-        margin-bottom: 10px;
+        font-size: 13px;
+        margin-bottom: 6px;
         color: #333;
     }
     .tag {
-        font-size: 10px;
-        padding: 3px 10px;
-        border-radius: 12px;
+        font-size: 9px;
+        padding: 2px 7px;
+        border-radius: 10px;
         background: #667eea;
         color: #fff;
-        margin-right: 8px;
+        margin-right: 6px;
     }
     .content-text {
-        font-size: 13px;
-        line-height: 1.9;
+        font-size: 11px;
+        line-height: 1.5;
         color: #555;
-        margin-top: 10px;
+        margin-top: 5px;
     }
     .kw {
         display: inline-block;
         background: #e8f0fe;
         color: #1a73e8;
-        padding: 4px 12px;
-        border-radius: 14px;
-        font-size: 11px;
-        margin: 3px 4px 3px 0;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 10px;
+        margin: 2px 3px 2px 0;
     }
     
     /* 子卡片 */
     .sub-card {
         background: #f8f9ff;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 8px;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 5px;
         cursor: pointer;
         border: 1px solid #e8e8e8;
         transition: all 0.2s;
@@ -185,18 +196,18 @@ st.markdown("""
     /* 统计卡片 */
     .stat-card {
         background: #fff;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         text-align: center;
     }
     .stat-card .label {
-        font-size: 13px;
+        font-size: 11px;
         color: #888;
-        margin-bottom: 8px;
+        margin-bottom: 5px;
     }
     .stat-card .value {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 600;
         color: #667eea;
     }
@@ -206,52 +217,62 @@ st.markdown("""
         display: inline-block;
         background: #e8f0fe;
         color: #1a73e8;
-        padding: 4px 10px;
-        border-radius: 14px;
-        font-size: 12px;
-        margin: 2px 4px 2px 0;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        margin: 2px 3px 2px 0;
     }
     
     /* 反馈项 */
     .feedback-item {
         background: #fff3cd;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        margin-bottom: 5px;
+        font-size: 12px;
     }
     
     /* 热门节点 */
     .hot-item {
-        padding: 8px 0;
+        padding: 5px 0;
         border-bottom: 1px solid #f0f0f0;
         display: flex;
         justify-content: space-between;
+        font-size: 12px;
     }
     .hot-item .rank {
         color: #667eea;
         font-weight: bold;
-        margin-right: 8px;
+        margin-right: 6px;
     }
     
-    /* 图例 */
+    /* 图例 - 横向排列 */
     .legend-box {
         background: #fff;
-        padding: 14px 18px;
-        border-radius: 10px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-        margin-bottom: 10px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+    .legend-box h5 {
+        margin: 0 !important;
+        font-size: 10px;
+        color: #888;
     }
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin: 6px 0;
-        font-size: 12px;
+        gap: 5px;
+        font-size: 10px;
         color: #555;
     }
     .legend-dot {
-        width: 14px;
-        height: 14px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         display: inline-block;
     }
@@ -259,13 +280,34 @@ st.markdown("""
     /* 提示框 */
     .tips-box {
         background: #fff;
-        padding: 12px 16px;
-        border-radius: 10px;
-        font-size: 11px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 10px;
         color: #888;
-        line-height: 1.8;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-        margin-top: 10px;
+        line-height: 1.4;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 5px;
+    }
+    
+    /* 按钮紧凑 */
+    .stButton > button {
+        padding: 0.25rem 0.6rem !important;
+        font-size: 11px !important;
+    }
+    
+    /* 输入框紧凑 */
+    .stTextInput > div > div > input {
+        padding: 0.3rem 0.5rem !important;
+        font-size: 12px !important;
+    }
+    .stTextArea > div > div > textarea {
+        font-size: 11px !important;
+    }
+    
+    /* 标题紧凑 */
+    h5, h4 {
+        margin-bottom: 0.3rem !important;
+        font-size: 12px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -516,47 +558,44 @@ if st.session_state.mode == 'student':
     col_sidebar, col_graph = st.columns([1, 2.5])
     
     with col_sidebar:
-        # 用户登录框
-        st.markdown("#### 请输入学号/姓名")
-        user_id = st.text_input("", placeholder="例如：2024001 张三", label_visibility="collapsed", key="user_input")
+        # 用户登录（紧凑）
+        st.markdown("##### 📝 学号/姓名")
+        user_id = st.text_input("", placeholder="例如：2024001", label_visibility="collapsed", key="user_input")
         if user_id:
             st.session_state.user_id = user_id
-            st.success(f"✅ 已登录: {user_id}")
-        else:
-            st.caption("输入后开始记录学习轨迹")
+            st.caption(f"✅ {user_id}")
         
         st.markdown("---")
         
-        # 节点详情区域
-        st.markdown("#### 📍 知识点详情")
+        # 节点详情
+        st.markdown("##### 📍 知识点详情")
         
         if st.session_state.selected_node:
             show_node_detail(st.session_state.selected_node)
         else:
             st.markdown("""
-            <div style="text-align: center; color: #aaa; padding: 40px 20px;">
-                <div style="font-size: 50px; margin-bottom: 16px;">🎯</div>
-                <p>点击图谱中的节点</p>
-                <p style="margin-top: 8px; font-size: 12px;">探索知识内容</p>
+            <div style="text-align: center; color: #aaa; padding: 15px 10px;">
+                <div style="font-size: 32px; margin-bottom: 6px;">🎯</div>
+                <p style="font-size: 11px;">点击节点探索内容</p>
             </div>
             """, unsafe_allow_html=True)
         
         st.markdown("---")
         
         # 学习路径
-        st.markdown("#### 📍 学习路径")
+        st.markdown("##### 📍 学习路径")
         if st.session_state.path:
-            path_html = ''.join([f'<span class="path-tag">{p["node"]}</span>' for p in st.session_state.path[-5:]])
+            path_html = ''.join([f'<span class="path-tag">{p["node"]}</span>' for p in st.session_state.path[-4:]])
             st.markdown(path_html, unsafe_allow_html=True)
         else:
-            st.caption("尚无记录")
+            st.caption("尚无")
         
         st.markdown("---")
         
-        # 反馈框
-        st.markdown("#### 💭 关于死亡，你有什么想法？")
-        feedback = st.text_area("", placeholder="分享你的思考和感悟...", label_visibility="collapsed", height=100, key="feedback_input")
-        if st.button("提交我的想法", use_container_width=True):
+        # 反馈框（紧凑）
+        st.markdown("##### 💭 分享想法")
+        feedback = st.text_area("", placeholder="关于生命的思考...", label_visibility="collapsed", height=50, key="feedback_input")
+        if st.button("提交", use_container_width=True):
             if feedback.strip():
                 st.session_state.feedbacks.append({
                     'content': feedback.strip(),
@@ -574,10 +613,10 @@ if st.session_state.mode == 'student':
                 st.warning("请先输入您的想法")
     
     with col_graph:
-        # 图例
+        # 图例（横向）
         st.markdown("""
         <div class="legend-box">
-            <h5 style="font-size: 12px; color: #888; margin-bottom: 10px;">节点类型</h5>
+            <h5>节点类型：</h5>
             <div class="legend-item"><span class="legend-dot" style="background:#5470c6"></span>课程主题</div>
             <div class="legend-item"><span class="legend-dot" style="background:#91cc75"></span>核心章节</div>
             <div class="legend-item"><span class="legend-dot" style="background:#fac858"></span>知识要点</div>
@@ -590,7 +629,7 @@ if st.session_state.mode == 'student':
         
         config = Config(
             width="100%",
-            height=600,
+            height=500,
             directed=True,
             physics={
                 "solver": "forceAtlas2Based",
@@ -622,11 +661,10 @@ if st.session_state.mode == 'student':
                 record_click(selected_node)
                 st.rerun()
         
-        # 提示
+        # 提示（单行）
         st.markdown("""
         <div class="tips-box">
-            💡 <strong>操作提示：</strong>点击节点查看详情 | 拖拽移动节点 | 滚轮缩放图谱<br>
-            边上的文字表示节点之间的关系（如"包含"、"探讨"、"分析"等）
+            💡 点击节点查看详情 | 拖拽移动 | 滚轮缩放 | 边上文字为关系
         </div>
         """, unsafe_allow_html=True)
 
